@@ -9,10 +9,8 @@ import os
 
 currentMin = -1
 minstick = {}
-hourstick = {}
-tick = -1
-prev = -1
-
+stickList = []
+trendNum = 3
 markets = {"AUS":["C.NZD/USD","C.USD/AUD"],
            "ASI":["C.AUD/JPY","C.AUD/HKD"],
            "EUR":['C.JPY/EUR','C.HKD/GBP'],
@@ -41,21 +39,30 @@ def on_message(ws, message):
         spread = ask - bid
         dt_obj = datetime.fromtimestamp(msg['t']/1000.0)
         if(currentMin == dt_obj.minute):
-            if(bid<minstick[currentMin]['low']):
-                minstick[currentMin]['low'] = bid
-            elif(bid>minstick[currentMin]['high']):
-                minstick[currentMin]['high'] = bid
+            if(bid<stickList[-1]['low']):
+                stickList[-1]['low'] = bid
+            elif(bid>stickList[-1]['high']):
+                stickList[-1]['high'] = bid
         elif(currentMin == -1):
             currentMin = dt_obj.minute
-            minstick[currentMin] = {'high':bid, 'low':bid, 'open':bid}
+            stickList.append({'high':bid, 'low':bid, 'open':bid, 'minute':currentMin})
         else:
-            minstick[currentMin]['close'] = bid
+            #NEW MINUTE
+            stickList[-1]['close'] = bid
             currentMin = dt_obj.minute
-            minstick[currentMin] = {'high':bid, 'low':bid, 'open':bid}
+            stickList.append({'high':bid, 'low':bid, 'open':bid, 'minute':currentMin})
+
+            trend = ['nuetral', 0]
+            if(len(stickList)>2):
+                if((stickList[-1]['close']<stickList[-2]['close'])and(stickList[-2]['close']<stickList[-3]['close'])):
+                    print("trending down")
+                elif((stickList[-1]['close']>stickList[-2]['close'])and(stickList[-2]['close']>stickList[-3]['close'])):
+                    print('trending up')
+
 
 
 def Onclose(ws):
-    print(minstick)
+    print(stickList)
     print('closed')
 
 def getActiveMarkets():
