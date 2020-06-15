@@ -47,19 +47,22 @@ def on_message(ws, message):
             currentMin = dt_obj.minute
             stickList.append({'high':bid, 'low':bid, 'open':bid, 'minute':currentMin})
         else:
-            #NEW MINUTE
+            print('NEW MINUTE')
             stickList[-1]['close'] = bid
             currentMin = dt_obj.minute
             stickList.append({'high':bid, 'low':bid, 'open':bid, 'minute':currentMin})
 
             trend = ['nuetral', 0]
-            if(len(stickList)>2):
-                if((stickList[-1]['close']<stickList[-2]['close'])and(stickList[-2]['close']<stickList[-3]['close'])):
-                    print("trending down")
-                elif((stickList[-1]['close']>stickList[-2]['close'])and(stickList[-2]['close']>stickList[-3]['close'])):
-                    print('trending up')
-
-
+            if(len(stickList)>3):
+                if((stickList[-2]['close']<stickList[-3]['close'])and(stickList[-3]['close']<stickList[-4]['close'])):
+                    trend[0] = 'Down'
+                    trend[1] = trend[1] - 1
+                elif((stickList[-2]['close']>stickList[-3]['close'])and(stickList[-3]['close']>stickList[-4]['close'])):
+                    trend[0] = 'Up'
+                    if(trend[1]< -3):
+                        print('buy')
+                    else:
+                        trend[1] = 0
 
 def Onclose(ws):
     print(stickList)
