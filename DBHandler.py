@@ -1,16 +1,14 @@
 from abc import ABC
 from redis import Redis
 from typing import List
-import pandas as pd
-import numpy as np
 import json
 from datetime import datetime
 
 class BaseHandler(ABC):
-    def save_one(self, data:dict, key:str):
+    def save_minutes(self, data:dict, key:str):
         raise NotImplementedError
 
-    def save_many(self, data:list, key:str):
+    def save_minute(self, data:list, key:str):
         raise NotImplementedError
 
     def load_latest(self, key:str) -> dict:
@@ -29,16 +27,19 @@ class Handler(BaseHandler):
     def __init__(self, redisConnection):
         self.redis = redisConnection
 
-    def save_one(self, data:dict, key:str):
+    def save_minutes(self, data:dict, key:str):
         saveable = {}
-        saveable[data] = data['minute']
-        self.redis.zadd(key, json.dumps(saveable))
-
-    def save_many(self, data:list, key:str):
-        saveable = {}
+        print(data)
         for dt in data:
-            saveable[dt] = dt['minute']
-        self.redis.zadd(key, json.dumps(saveable))
+            saveable[json.dumps(dt)] = dt['relative_minute']
+        print(saveable)
+        self.redis.zadd(key, saveable)
+        return(True)
+
+    def save_minute(self, data:list, key:str):
+        saveable = {}
+        saveable[json.dumps(data[0])] = data[0]['relative_minute']
+        self.redis.zadd(key, saveable)
 
     def load_latest(self, key:str) -> dict:
         jsonData = self.redis.zrevrange(key, 0, 0, withscores=False)
@@ -50,6 +51,8 @@ class Handler(BaseHandler):
         return data.values()
 
     def load_hour(self, key:str):
-        jsonData = self.redis.zrange(key, 0, -1, withscores=False)
+        last = self.get_latest_timestamp(key)
+        first = last - 60
+        jsonData = self.redis.zrange(key, first, last, withscores=False)
         return(json.loads(jsonData))
 

@@ -6,7 +6,11 @@ from datetime import datetime
 from threading import Thread
 #from candle import stick
 import os
+from DBHandler import Handler
+from redis import Redis
 
+redis = Redis()
+handler = Handler(redis)
 currentMin = -1
 minstick = {}
 stickList = []
@@ -15,6 +19,8 @@ markets = {"AUS":["C.NZD/USD","C.USD/AUD"],
            "ASI":["C.AUD/JPY","C.AUD/HKD"],
            "EUR":['C.JPY/EUR','C.HKD/GBP'],
            "USA":['C.EUR/USD','C.GBP/USD']}
+
+relative_minute = 0
 
 def Onopen(ws):
     global keys
@@ -45,27 +51,31 @@ def on_message(ws, message):
                 stickList[-1]['high'] = bid
         elif(currentMin == -1):
             currentMin = dt_obj.minute
-            stickList.append({'high':bid, 'low':bid, 'open':bid, 'minute':currentMin})
+            stickList.append({'high':bid, 'low':bid, 'open':bid, 'minute':currentMin, 'relative_minute': relative_minute})
         else:
             print('NEW MINUTE')
+            relative_minute += 1
             stickList[-1]['close'] = bid
             currentMin = dt_obj.minute
-            stickList.append({'high':bid, 'low':bid, 'open':bid, 'minute':currentMin})
+            stickList.append({'high':bid, 'low':bid, 'open':bid, 'minute':currentMin, 'relative_minute': relative_minute})
 
             trend = ['nuetral', 0]
             if(len(stickList)>3):
                 if((stickList[-2]['close']<stickList[-3]['close'])and(stickList[-3]['close']<stickList[-4]['close'])):
-                        trend[0] = 'down'
-                        trend[1] = trend[1] - 1
+                    print('trending down')
+                    trend[0] = 'down'
+                    trend[1] = trend[1] - 1
                 elif((stickList[-2]['close']>stickList[-3]['close'])and(stickList[-3]['close']>stickList[-4]['close'])):
+                    print('trending up')
                     trend[0] = 'Up'
                     if(trend[1]< -3):
-                        print('buy')
+                        print('buying')
+                        print('buy at', bid, 'sell at', (bid - (bid-stickList[-4]['close'])) + bid, 'for', (bid - (bid-stickList[-4]['close'])))
                     else:
                         trend[1] = 0
 
 def Onclose(ws):
-    print(stickList)
+    print(handler.save_minutes(stickList[:-1], 'test'))
     print('closed')
 
 def getActiveMarkets():
