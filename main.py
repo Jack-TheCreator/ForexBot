@@ -55,8 +55,8 @@ def on_message(ws, message):
             trend = ['nuetral', 0]
             if(len(stickList)>3):
                 if((stickList[-2]['close']<stickList[-3]['close'])and(stickList[-3]['close']<stickList[-4]['close'])):
-                    trend[0] = 'Down'
-                    trend[1] = trend[1] - 1
+                        trend[0] = 'down'
+                        trend[1] = trend[1] - 1
                 elif((stickList[-2]['close']>stickList[-3]['close'])and(stickList[-3]['close']>stickList[-4]['close'])):
                     trend[0] = 'Up'
                     if(trend[1]< -3):
