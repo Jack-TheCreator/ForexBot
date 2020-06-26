@@ -22,39 +22,16 @@ class Modeling():
         self.scaler = MinMaxScaler()
         self.data = handler.load_all('test')
         self.data[['close']] = self.scaler.fit_transform(self.data[['close']])
+        self.predictAhead = 5
 
-    def graph():
-        pass
-
-    def getPredictions(self):
-
-        model = models.load_model('my_model.h5')
-
-        predictAhead = 5
-        price = self.data['close'].values
-
-        # --------Predictions------------#
-        price = price.reshape(-1)
-        predictions = price[-self.time_steps:]
-        for derp in range(predictAhead):
-            x = predictions[-self.time_steps:]
-            x = x.reshape((1, self.time_steps, 1))
-            out = model.predict(x)[0][0]
-            predictions = np.append(predictions, out)
-        predictions = predictions[self.time_steps:]
-        # --------------------------------#
-
+    def graph(self):
         priceList = self.data['close'].values
-        predictions = np.asarray(predictions)
-        priceList = np.append(priceList, predictions)
-        priceList = np.reshape(priceList, (-1, 1))
-
+        priceList = np.reshape(priceList, (-1,1))
+        priceList = np.append(priceList, self.pred)
         priceList = self.scaler.inverse_transform(priceList)
         minList = self.data['relative_minute'].values
-
-        for i in range(predictAhead):
+        for i in range(self.predictAhead):
             minList = np.append(minList, (minList[-1] + 1))
-
         dfprice = priceList[:-5]
         dfmin = minList[:-5]
         predprice = priceList[-5:]
@@ -62,6 +39,27 @@ class Modeling():
         plt.plot(dfmin, dfprice)
         plt.plot(predmin, predprice)
         plt.show()
+
+    def getPredictions(self):
+
+        model = models.load_model('my_model.h5')
+
+        price = self.data['close'].values
+
+        # --------Predictions------------#
+        price = price.reshape(-1)
+        predictions = price[-self.time_steps:]
+        for derp in range(self.predictAhead):
+            x = predictions[-self.time_steps:]
+            x = x.reshape((1, self.time_steps, 1))
+            out = model.predict(x)[0][0]
+            predictions = np.append(predictions, out)
+        predictions = predictions[self.time_steps:]
+        # --------------------------------#
+        predictions = np.asarray(predictions)
+        self.pred = np.reshape(predictions, (-1, 1))
+        return(self.scaler.inverse_transform(self.pred))
+
 
     def buildModel(self):
 
