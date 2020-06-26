@@ -8,6 +8,8 @@ from threading import Thread
 import os
 from DBHandler import Handler
 from redis import Redis
+import threading
+import modeling
 
 redis = Redis()
 handler = Handler(redis)
@@ -22,6 +24,10 @@ markets = {"AUS":["C.NZD/USD","C.USD/AUD"],
 
 relative_minute = 0
 
+def getModel():
+    handler.save_minutes(stickList[:-1], 'test')
+    modeling.getPredictions()
+
 def Onopen(ws):
     global keys
     print('OPEN++++++')
@@ -35,7 +41,7 @@ def Onopen(ws):
 
 
 def on_message(ws, message):
-    global currentMin, minstick
+    global currentMin, minstick, relative_minute
     msg = orjson.loads(message)[0]
     if(msg['ev']=='status'):
         pass
@@ -54,28 +60,33 @@ def on_message(ws, message):
             stickList.append({'high':bid, 'low':bid, 'open':bid, 'minute':currentMin, 'relative_minute': relative_minute})
         else:
             print('NEW MINUTE')
-            relative_minute += 1
+            relative_minute = relative_minute + 1
             stickList[-1]['close'] = bid
             currentMin = dt_obj.minute
             stickList.append({'high':bid, 'low':bid, 'open':bid, 'minute':currentMin, 'relative_minute': relative_minute})
 
-            trend = ['nuetral', 0]
-            if(len(stickList)>3):
-                if((stickList[-2]['close']<stickList[-3]['close'])and(stickList[-3]['close']<stickList[-4]['close'])):
-                    print('trending down')
-                    trend[0] = 'down'
-                    trend[1] = trend[1] - 1
-                elif((stickList[-2]['close']>stickList[-3]['close'])and(stickList[-3]['close']>stickList[-4]['close'])):
-                    print('trending up')
-                    trend[0] = 'Up'
-                    if(trend[1]< -3):
-                        print('buying')
-                        print('buy at', bid, 'sell at', (bid - (bid-stickList[-4]['close'])) + bid, 'for', (bid - (bid-stickList[-4]['close'])))
-                    else:
-                        trend[1] = 0
+            #trend = ['nuetral', 0]
+            # if(len(stickList)>3):
+            #     if((stickList[-2]['close']<stickList[-3]['close'])and(stickList[-3]['close']<stickList[-4]['close'])):
+            #         print('trending down')
+            #         trend[0] = 'down'
+            #         trend[1] = trend[1] - 1
+            #     elif((stickList[-2]['close']>stickList[-3]['close'])and(stickList[-3]['close']>stickList[-4]['close'])):
+            #         print('trending up')
+            #         trend[0] = 'Up'
+            #         if(trend[1]< -3):
+            #             print('buying')
+            #             print('buy at', bid, 'sell at', (bid - (bid-stickList[-4]['close'])) + bid, 'for', (bid - (bid-stickList[-4]['close'])))
+            #         else:
+            #             trend[1] = 0
+
+            #update cache every X minutes
+        # if(relative_minute % 2 == 0):
+        #     t1 = threading.Thread(target=getModel, name='t1')
+        #     t1.start()
 
 def Onclose(ws):
-    print(handler.save_minutes(stickList[:-1], 'test'))
+    handler.save_minutes(stickList[:-1], 'test')
     print('closed')
 
 def getActiveMarkets():
