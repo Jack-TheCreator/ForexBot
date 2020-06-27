@@ -21,17 +21,21 @@ class Modeling():
         handler = Handler(redis)
         self.scaler = MinMaxScaler()
         self.data = handler.load_all('test')
+        self.data = pd.DataFrame(self.data)
         self.data[['close']] = self.scaler.fit_transform(self.data[['close']])
         self.predictAhead = 5
+        self.time_steps = 15
 
     def graph(self):
         priceList = self.data['close'].values
-        priceList = np.reshape(priceList, (-1,1))
         priceList = np.append(priceList, self.pred)
+        priceList = np.reshape(priceList, (-1, 1))
         priceList = self.scaler.inverse_transform(priceList)
         minList = self.data['relative_minute'].values
         for i in range(self.predictAhead):
             minList = np.append(minList, (minList[-1] + 1))
+        # priceList = np.reshape(priceList, (-1,1))
+        # minList = np.reshape(minList, (-1, 1))
         dfprice = priceList[:-5]
         dfmin = minList[:-5]
         predprice = priceList[-5:]
@@ -63,7 +67,6 @@ class Modeling():
 
     def buildModel(self):
 
-        self.time_steps = 15
         batch = 10
         units = 10
         num_epochs = 25
@@ -72,7 +75,7 @@ class Modeling():
         price = self.data['close'].values
         price = np.reshape(price, (-1,1))
         #Split here
-        trainData = TimeseriesGenerator(price, price, length=time_steps, batch_size=batch)
+        trainData = TimeseriesGenerator(price, price, length=self.time_steps, batch_size=batch)
 
         #######init Model##########
         model = Sequential()
