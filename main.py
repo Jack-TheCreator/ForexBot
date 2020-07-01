@@ -20,7 +20,7 @@ minstick = {}
 stickList = []
 currentKey = ""
 trendNum = 3
-crypto = True
+crypto = False
 markets = {"AUS":["C.NZD/USD","C.USD/AUD"],
            "ASI":["C.AUD/JPY","C.AUD/HKD"],
            "EUR":['C.JPY/EUR','C.HKD/GBP'],
@@ -44,8 +44,13 @@ def Onopen(ws):
     ws.send(json.dumps(auth))
     ws.send(json.dumps({"action":"subscribe","params":keys[0]}))
 
+def buildModel():
+    global currentKey
+    builder = modeling.Modeling(currentKey)
+    builder.buildModel(currentKey)
+
 def newHour():
-    global stickList, currentMin, relative_minute, currentKey
+    global stickList, currentMin, relative_minute, currentKey, ws
     time = datetime.now().hour
 
     if(time in [3,8,17,19]):
@@ -53,7 +58,9 @@ def newHour():
         #Save Current market, Unsub, Sub new market
         #Eventually use model trained on yesterdays data
         #REÉËĘ
-        handler.save_minutes(stickList[:-1], currentKey)
+        print(handler.save_minutes(stickList[:-1], currentKey))
+        t1 = threading.Thread(target=buildModel, name="t1")
+        t1.start()
         stickList = []
         relative_minute = 0
         currentMin = -1
@@ -75,6 +82,7 @@ def on_message(ws, message):
             ask = msg['a']
             bid = msg['b']
         dt_obj = datetime.fromtimestamp(msg['t']/1000.0)
+
 
         if(currentMin == dt_obj.minute):
             if(bid<stickList[-1]['low']):
@@ -109,10 +117,20 @@ def on_message(ws, message):
 
             #update cache every X minutes
             if(currentHour != dt_obj.hour):
+                currentHour = dt_obj.hour
+                print('newHour')
                 newHour()
 
 def Onclose(ws):
+    global keys
     print('closed')
+    keys = getActiveMarkets()
+    if (crypto):
+        address = 'wss://socket.polygon.io/crypto'
+    else:
+        address = 'wss://socket.polygon.io/forex'
+    ws = websocket.WebSocketApp(address, on_open=Onopen, on_close=Onclose, on_message=on_message)
+    ws.run_forever()
 
 def getActiveMarkets():
     global currentKey
@@ -134,15 +152,14 @@ def getActiveMarkets():
         return(markets["USA"])
 
 
-def main():
-    global keys, currentMin, prevsticks
-    keys = getActiveMarkets()
-    if(crypto):
-        address = 'wss://socket.polygon.io/crypto'
-    else:
-        address = 'wss://socket.polygon.io/forex'
-    ws = websocket.WebSocketApp(address, on_open=Onopen, on_close=Onclose, on_message=on_message)
-    ws.run_forever()
 
-main()
+keys = getActiveMarkets()
+if(crypto):
+    address = 'wss://socket.polygon.io/crypto'
+else:
+    address = 'wss://socket.polygon.io/forex'
+ws = websocket.WebSocketApp(address, on_open=Onopen, on_close=Onclose, on_message=on_message)
+ws.run_forever()
+
+
 

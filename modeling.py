@@ -16,11 +16,11 @@ from keras.preprocessing.sequence import TimeseriesGenerator
 
 class Modeling():
 
-    def __init__(self):
+    def __init__(self, key):
         redis = Redis()
         handler = Handler(redis)
         self.scaler = MinMaxScaler()
-        self.data = handler.load_all('test')
+        self.data = handler.load_all(key)
         self.data = pd.DataFrame(self.data)
         self.data[['close']] = self.scaler.fit_transform(self.data[['close']])
         self.predictAhead = 5
@@ -44,9 +44,9 @@ class Modeling():
         plt.plot(predmin, predprice)
         plt.show()
 
-    def getPredictions(self):
-
-        model = models.load_model('my_model.h5')
+    def getPredictions(self, currentKey):
+        path = currentKey + ".h5"
+        model = models.load_model(path)
 
         price = self.data['close'].values
 
@@ -65,31 +65,56 @@ class Modeling():
         return(self.scaler.inverse_transform(self.pred))
 
 
-    def buildModel(self):
+    def buildModel(self, currentKey):
 
-        batch = 10
-        units = 10
-        num_epochs = 25
+
+        trainSize = 0.8
+        nuerons = [10, 15, 20 ,25]
+        num_epochs = [100, 250, 500, 1000]
+        reps = 5
+        #self.time_steps
 
         time = self.data['relative_minute']
-        price = self.data['close'].values
-        price = np.reshape(price, (-1,1))
-        #Split here
-        trainData = TimeseriesGenerator(price, price, length=self.time_steps, batch_size=batch)
+        close = self.data['close'].values
+        trainSplit = int(len(self.data) * trainSize)
+        train, test = close[:trainSplit], close[trainSplit:]
+        train = np.reshape(train, (-1,1))
+        test = np.reshape(test, (-1,1))
 
-        #######init Model##########
-        model = Sequential()
-        model.add(
-            LSTM(units,
-                 activation='relu',
-                 input_shape=(self.time_steps, 1))
-        )
-        model.add(Dense(1))
-        model.compile(optimizer='adam', loss='mse')
-        model.fit(trainData, epochs=num_epochs, verbose=1)
-        ###########################
+        trainData = TimeseriesGenerator(train, train, length=self.time_steps, batch_size=batch)
+        testData = TimeseriesGenerator(test, test, length=self.time_steps, batch_size=1)
 
-        model.save('my_model.h5')
+        results = {}
+
+
+        testVals = scaler.inverse_transform(test[time_steps:])
+        for _ in range(reps):
+
+            for n in nuerons:
+
+                for e in num_epochs:
+                    #######init Model##########
+                    model = Sequential()
+                    model.add(
+                        LSTM(n,
+                             activation='relu',
+                             input_shape=(self.time_steps, 1))
+                    )
+                    model.add(Dense(1))
+                    model.compile(optimizer='adam', loss='mse')
+                    model.fit(trainData, epochs=e, verbose=1)
+                    ###########################
+
+                    pred = model.predict_generator(test_series)
+                    for p, t in zip(pred, testVals):
+                        squared.append((t - p) ** 2)
+                    mean = sum(squared) / len(squared)
+                    results[mean] = model
+
+        bestModel = results[min(results.keys())]
+
+        path = currentKey + ".h5"
+        bestModel.save(path)
 
 
 

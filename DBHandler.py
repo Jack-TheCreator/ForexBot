@@ -23,6 +23,9 @@ class BaseHandler(ABC):
     def load_day(self, key:str):
         raise NotImplementedError
 
+    def load_all(self, key:str):
+        raise NotImplementedError
+
 class Handler(BaseHandler):
     def __init__(self, redisConnection):
         self.redis = redisConnection
@@ -56,3 +59,9 @@ class Handler(BaseHandler):
         jsonData = self.redis.zrange(key, first, last, withscores=False)
         return(json.loads(jsonData))
 
+    def load_all(self, key:str):
+        data = []
+        jsonData = self.redis.zrange(key, 0, -1, withscores=False)
+        for dt in jsonData:
+            data.append(json.loads(dt))
+        return(data)
