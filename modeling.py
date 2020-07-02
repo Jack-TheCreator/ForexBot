@@ -16,15 +16,18 @@ from keras.preprocessing.sequence import TimeseriesGenerator
 
 class Modeling():
 
-    def __init__(self, key):
-        redis = Redis()
-        handler = Handler(redis)
-        self.scaler = MinMaxScaler()
-        self.data = handler.load_all(key)
-        self.data = pd.DataFrame(self.data)
-        self.data[['close']] = self.scaler.fit_transform(self.data[['close']])
-        self.predictAhead = 5
-        self.time_steps = 15
+    def __init__(self, key=None):
+        if(key == None):
+            pass
+        else:
+            redis = Redis()
+            handler = Handler(redis)
+            self.scaler = MinMaxScaler()
+            self.data = handler.load_all(key)
+            self.data = pd.DataFrame(self.data)
+            self.data[['close']] = self.scaler.fit_transform(self.data[['close']])
+            self.predictAhead = 5
+            self.time_steps = 15
 
     def graph(self):
         priceList = self.data['close'].values
@@ -44,19 +47,24 @@ class Modeling():
         plt.plot(predmin, predprice)
         plt.show()
 
-    def getPredictions(self, currentKey):
+    def loadModel(self,currentKey):
         path = currentKey + ".h5"
-        model = models.load_model(path)
+        self.model = models.load_model(path)
 
-        price = self.data['close'].values
+    def getPredictions(self, stickList):
+        values = []
+        for val in stickList:
+            values.append(val['close'])
+
+        values = np.asarray(values)
 
         # --------Predictions------------#
-        price = price.reshape(-1)
-        predictions = price[-self.time_steps:]
+        values = values.reshape(-1)
+        predictions = values[-self.time_steps:]
         for derp in range(self.predictAhead):
             x = predictions[-self.time_steps:]
             x = x.reshape((1, self.time_steps, 1))
-            out = model.predict(x)[0][0]
+            out = self.model.predict(x)[0][0]
             predictions = np.append(predictions, out)
         predictions = predictions[self.time_steps:]
         # --------------------------------#
@@ -81,13 +89,13 @@ class Modeling():
         train = np.reshape(train, (-1,1))
         test = np.reshape(test, (-1,1))
 
-        trainData = TimeseriesGenerator(train, train, length=self.time_steps, batch_size=batch)
+        trainData = TimeseriesGenerator(train, train, length=self.time_steps, batch_size=20)
         testData = TimeseriesGenerator(test, test, length=self.time_steps, batch_size=1)
 
         results = {}
 
 
-        testVals = scaler.inverse_transform(test[time_steps:])
+        testVals = self.scaler.inverse_transform(test[self.time_steps:])
         for _ in range(reps):
 
             for n in nuerons:
@@ -105,11 +113,13 @@ class Modeling():
                     model.fit(trainData, epochs=e, verbose=1)
                     ###########################
 
-                    pred = model.predict_generator(test_series)
+                    pred = model.predict_generator(testData)
+                    squared = []
                     for p, t in zip(pred, testVals):
                         squared.append((t - p) ** 2)
                     mean = sum(squared) / len(squared)
-                    results[mean] = model
+
+                    results[mean[0]] = model
 
         bestModel = results[min(results.keys())]
 

@@ -14,6 +14,7 @@ import modeling
 redis = Redis()
 #m = modeling.Modeling()
 handler = Handler(redis)
+predicter = modeling.Modeling()
 currentMin = -1
 currentHour = -1
 minstick = {}
@@ -30,8 +31,8 @@ markets = {"AUS":["C.NZD/USD","C.USD/AUD"],
 relative_minute = 0
 
 def getModel():
-    #handler.save_minutes(stickList[:-1], 'test')
-    print(m.getPredictions())
+    global currentKey
+    predicter.loadModel(currentKey)
 
 def Onopen(ws):
     global keys
@@ -66,6 +67,7 @@ def newHour():
         currentMin = -1
         ws.send(json.dumps({"action":"unsubscribe","params":markets[currentKey][0]}))
         keys = getActiveMarkets()
+
         ws.send(json.dumps({"action":"subscribe","params":keys[0]}))
 
 
@@ -114,8 +116,10 @@ def on_message(ws, message):
             #             print('buy at', bid, 'sell at', (bid - (bid-stickList[-4]['close'])) + bid, 'for', (bid - (bid-stickList[-4]['close'])))
             #         else:
             #             trend[1] = 0
+            if(len(stickList)>15):
+                preds = predicter.getPredictions(stickList[:-1])
+                print(preds)
 
-            #update cache every X minutes
             if(currentHour != dt_obj.hour):
                 currentHour = dt_obj.hour
                 print('newHour')
